@@ -1,0 +1,14 @@
+[project]
+name = "llm-inference-server"
+version = "0.1.0"
+description = "LLM inference server with continuous batching"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "PL"]
+# PLR2004: tensor shapes and small counts read clearer as literals in tests
+# PLW0603: the engine handle is created in the FastAPI lifespan, the standard pattern
+ignore = ["PLR2004", "PLW0603"]
