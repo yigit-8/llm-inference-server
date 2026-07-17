@@ -24,7 +24,9 @@ class EngineRunner:
     def __init__(self, model, tokenizer) -> None:
         self.model = model
         self.tokenizer = tokenizer
-        self.engine = ContinuousBatchingEngine(model, tokenizer, settings.MAX_BATCH_SIZE)
+        self.engine = ContinuousBatchingEngine(
+            model, tokenizer, settings.MAX_BATCH_SIZE
+        )
 
         self._lock = threading.Lock()
         self._events: dict[str, threading.Event] = {}
@@ -34,14 +36,18 @@ class EngineRunner:
     def start(self) -> None:
         self._thread = threading.Thread(target=self._loop, daemon=True, name="engine")
         self._thread.start()
-        logger.info(f"engine started: {settings.MODEL_NAME}, max batch {settings.MAX_BATCH_SIZE}")
+        logger.info(
+            f"engine started: {settings.MODEL_NAME}, max batch {settings.MAX_BATCH_SIZE}"
+        )
 
     def stop(self) -> None:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
 
-    def submit(self, prompt: str, max_new_tokens: int) -> tuple[Sequence, threading.Event]:
+    def submit(
+        self, prompt: str, max_new_tokens: int
+    ) -> tuple[Sequence, threading.Event]:
         encoded = self.tokenizer(prompt, return_tensors="pt")
         prompt_ids = encoded["input_ids"][:, -settings.MAX_PROMPT_TOKENS :]
         if prompt_ids.shape[1] == 0:
@@ -97,7 +103,9 @@ class EngineRunner:
             metrics.set_engine_state(running, queued)
 
             for sequence in finished:
-                total = (sequence.finished_at or time.perf_counter()) - sequence.queued_at
+                total = (
+                    sequence.finished_at or time.perf_counter()
+                ) - sequence.queued_at
                 metrics.observe_completion(
                     sequence.time_to_first_token(), len(sequence.tokens), total
                 )

@@ -4,7 +4,9 @@ from transformers.cache_utils import DynamicCache
 from src.cache_ops import build_cache, cache_tensors, concat_caches, select_rows
 
 
-def fake_cache(batch: int, seq: int, layers: int = 2, heads: int = 2, dim: int = 4) -> DynamicCache:
+def fake_cache(
+    batch: int, seq: int, layers: int = 2, heads: int = 2, dim: int = 4
+) -> DynamicCache:
     return build_cache(
         [
             (torch.randn(batch, heads, seq, dim), torch.randn(batch, heads, seq, dim))
@@ -31,7 +33,9 @@ def test_concat_pads_the_shorter_cache_on_the_left():
     keys = cache_tensors(merged)[0][0]
 
     assert keys.shape == (2, 2, 5, 4)
-    assert torch.equal(keys[1, :, 3:, :], original_short_keys[0])  # real tokens sit at the right
+    assert torch.equal(
+        keys[1, :, 3:, :], original_short_keys[0]
+    )  # real tokens sit at the right
     assert torch.all(keys[1, :, :3, :] == 0)  # padding on the left
 
 

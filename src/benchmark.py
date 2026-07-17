@@ -55,7 +55,11 @@ def run(model, tokenizer, sequences: list[Sequence], batch_size: int) -> dict:
     elapsed = time.perf_counter() - started
 
     tokens = sum(len(s.tokens) for s in sequences)
-    ttfts = [s.time_to_first_token() for s in sequences if s.time_to_first_token() is not None]
+    ttfts = [
+        s.time_to_first_token()
+        for s in sequences
+        if s.time_to_first_token() is not None
+    ]
     return {
         "seconds": elapsed,
         "steps": steps,
@@ -80,18 +84,26 @@ def main() -> None:
     model = AutoModelForCausalLM.from_pretrained(args.model)
     model.eval()
 
-    print(f"model={args.model} requests={args.requests} max_new_tokens={args.max_new_tokens}")
+    print(
+        f"model={args.model} requests={args.requests} max_new_tokens={args.max_new_tokens}"
+    )
 
     baseline = run(
         model,
         tokenizer,
-        [make_sequence(i, tokenizer, args.max_new_tokens) for i in range(args.requests)],
+        [
+            make_sequence(i, tokenizer, args.max_new_tokens)
+            for i in range(args.requests)
+        ],
         batch_size=1,
     )
     batched = run(
         model,
         tokenizer,
-        [make_sequence(i, tokenizer, args.max_new_tokens) for i in range(args.requests)],
+        [
+            make_sequence(i, tokenizer, args.max_new_tokens)
+            for i in range(args.requests)
+        ],
         batch_size=args.batch_size,
     )
 
@@ -100,12 +112,20 @@ def main() -> None:
 
     print(f"\n{'':<22}{'sequential':>14}{'batched':>14}")
     print(f"{'batch size':<22}{1:>14}{args.batch_size:>14}")
-    print(f"{'wall seconds':<22}{baseline['seconds']:>14.2f}{batched['seconds']:>14.2f}")
+    print(
+        f"{'wall seconds':<22}{baseline['seconds']:>14.2f}{batched['seconds']:>14.2f}"
+    )
     print(f"{'forward passes':<22}{baseline['steps']:>14}{batched['steps']:>14}")
-    print(f"{'tokens/second':<22}{baseline['tokens_per_second']:>14.1f}"
-          f"{batched['tokens_per_second']:>14.1f}")
-    print(f"{'TTFT p50 (s)':<22}{baseline['ttft_p50']:>14.3f}{batched['ttft_p50']:>14.3f}")
-    print(f"{'TTFT max (s)':<22}{baseline['ttft_max']:>14.3f}{batched['ttft_max']:>14.3f}")
+    print(
+        f"{'tokens/second':<22}{baseline['tokens_per_second']:>14.1f}"
+        f"{batched['tokens_per_second']:>14.1f}"
+    )
+    print(
+        f"{'TTFT p50 (s)':<22}{baseline['ttft_p50']:>14.3f}{batched['ttft_p50']:>14.3f}"
+    )
+    print(
+        f"{'TTFT max (s)':<22}{baseline['ttft_max']:>14.3f}{batched['ttft_max']:>14.3f}"
+    )
     print(f"\nthroughput speedup: {speedup:.2f}x")
     print(f"identical output:   {identical}")
 

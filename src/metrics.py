@@ -13,12 +13,22 @@ other: a fuller batch raises throughput and inter-token latency together.
 """
 
 from fastapi import Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 REQUESTS = Counter("llm_requests_total", "Generation requests accepted.")
-TOKENS_GENERATED = Counter("llm_tokens_generated_total", "Tokens produced by the engine.")
+TOKENS_GENERATED = Counter(
+    "llm_tokens_generated_total", "Tokens produced by the engine."
+)
 
-RUNNING_BATCH = Gauge("llm_running_batch_size", "Sequences currently in the running batch.")
+RUNNING_BATCH = Gauge(
+    "llm_running_batch_size", "Sequences currently in the running batch."
+)
 QUEUE_DEPTH = Gauge("llm_queue_depth", "Requests waiting to be admitted.")
 
 TIME_TO_FIRST_TOKEN = Histogram(

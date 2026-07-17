@@ -33,7 +33,8 @@ def test_batching_does_not_change_the_tokens_a_request_receives(
 
     engine = ContinuousBatchingEngine(model, tokenizer, max_batch_size=4)
     sequences = [
-        make_sequence(str(i), p, n) for i, (p, n) in enumerate(zip(PROMPTS, LENGTHS, strict=True))
+        make_sequence(str(i), p, n)
+        for i, (p, n) in enumerate(zip(PROMPTS, LENGTHS, strict=True))
     ]
     for sequence in sequences:
         engine.add(sequence)
@@ -42,14 +43,17 @@ def test_batching_does_not_change_the_tokens_a_request_receives(
     assert [s.tokens for s in sequences] == expected
 
 
-def test_requests_admitted_mid_flight_get_the_same_tokens(model, tokenizer, make_sequence):
+def test_requests_admitted_mid_flight_get_the_same_tokens(
+    model, tokenizer, make_sequence
+):
     """Joining a batch that is already decoding exercises cache merging, left
     padding and eviction all at once. The tokens must still be untouched."""
     expected = oracle(model, tokenizer, make_sequence)
 
     engine = ContinuousBatchingEngine(model, tokenizer, max_batch_size=3)
     sequences = [
-        make_sequence(str(i), p, n) for i, (p, n) in enumerate(zip(PROMPTS, LENGTHS, strict=True))
+        make_sequence(str(i), p, n)
+        for i, (p, n) in enumerate(zip(PROMPTS, LENGTHS, strict=True))
     ]
     pending = list(sequences)
     engine.add(pending.pop(0))
@@ -76,7 +80,9 @@ def test_engine_never_runs_more_sequences_than_the_batch_allows(
         assert len(engine.running) <= 2
 
 
-def test_finished_sequences_leave_the_batch_immediately(model, tokenizer, make_sequence):
+def test_finished_sequences_leave_the_batch_immediately(
+    model, tokenizer, make_sequence
+):
     """A short request must not be held hostage by a long one sharing its batch,
     which is precisely what static batching gets wrong."""
     short = make_sequence("short", [5, 6], 2)
@@ -95,7 +101,9 @@ def test_finished_sequences_leave_the_batch_immediately(model, tokenizer, make_s
     assert long in engine.running
 
 
-def test_step_reports_the_sequences_that_finished_in_it(model, tokenizer, make_sequence):
+def test_step_reports_the_sequences_that_finished_in_it(
+    model, tokenizer, make_sequence
+):
     sequence = make_sequence("a", [5, 6], 3)
     engine = ContinuousBatchingEngine(model, tokenizer, max_batch_size=1)
     engine.add(sequence)
