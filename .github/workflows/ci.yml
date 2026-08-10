@@ -71,7 +71,7 @@ jobs:
       - name: Push image to GHCR
         if: github.event_name == 'push'
         run: |
-          docker tag llm-inference-server:${{ github.sha }} ghcr.io/yigit-8/llm-inference-server:latest
-          docker tag llm-inference-server:${{ github.sha }} ghcr.io/yigit-8/llm-inference-server:${{ github.sha }}
-          docker push ghcr.io/yigit-8/llm-inference-server:latest
-          docker push ghcr.io/yigit-8/llm-inference-server:${{ github.sha }}
+          docker tag llm-inference-server:${{ github.sha }} ghcr.io/yigitliman/llm-inference-server:latest
+          docker tag llm-inference-server:${{ github.sha }} ghcr.io/yigitliman/llm-inference-server:${{ github.sha }}
+          docker push ghcr.io/yigitliman/llm-inference-server:latest
+          docker push ghcr.io/yigitliman/llm-inference-server:${{ github.sha }}

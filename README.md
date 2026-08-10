@@ -1,6 +1,6 @@
 # LLM Inference Server
 
-![CI](https://github.com/yigit-8/llm-inference-server/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/yigitliman/llm-inference-server/actions/workflows/ci.yml/badge.svg)
 
 An inference server for causal language models built around **continuous
 batching**: the scheduling technique that lets one model serve many concurrent
