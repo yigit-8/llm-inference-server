@@ -1,7 +1,7 @@
 """
 Open-loop load test: static batching against continuous batching.
 
-`src/benchmark.py` answers a closed-loop question — given N requests that are all
+`src/benchmark.py` answers a closed-loop question: given N requests that are all
 present at t=0, how fast does the engine chew through them. That flatters
 batching and says nothing about latency under load, because nothing ever waits in
 a queue that is filling while the GPU works.
@@ -20,8 +20,8 @@ The two arms differ only in when a waiting request is allowed into the batch:
   continuous  a request joins at the next iteration after it arrives, and leaves
               the batch the moment it finishes.
 
-Everything else is held identical — same model, same prompts, same output
-lengths, same arrival times, same seed — so the gap between the columns is the
+Everything else is held identical (same model, same prompts, same output
+lengths, same arrival times, same seed), so the gap between the columns is the
 scheduling policy and nothing else.
 
     python -m benchmarks.load                        # default sweep, fp16 on GPU
@@ -56,7 +56,7 @@ PROMPT_LENGTHS = ((0.50, 32), (0.30, 96), (0.15, 192), (0.05, 256))
 OUTPUT_LENGTHS = ((0.40, 16), (0.35, 48), (0.20, 96), (0.05, 192))
 
 # Sliced into windows to build prompts of an exact token length. The content is
-# irrelevant to the measurement — only the token count is — but real text keeps
+# irrelevant to the measurement (only the token count is), but real text keeps
 # the tokenizer honest about how many tokens a window actually holds.
 CORPUS = (
     "Continuous batching schedules work at the granularity of a single decode "
@@ -403,7 +403,7 @@ def warm_up_kernels(bundle: ModelBundle) -> None:
 
 
 def cell(value: float, digits: int = 3) -> str:
-    return "—" if math.isnan(value) else f"{value:.{digits}f}"
+    return "n/a" if math.isnan(value) else f"{value:.{digits}f}"
 
 
 def markdown_tables(
