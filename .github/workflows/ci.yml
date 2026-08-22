@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,13 +26,13 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt ruff
+        run: pip install -r requirements.txt ruff pytest-cov
 
       - name: Lint
         run: ruff check src tests
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --cov=src --cov-report=term-missing
 
   docker-build:
     runs-on: ubuntu-latest

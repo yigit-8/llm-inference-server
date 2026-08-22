@@ -32,6 +32,7 @@ class EngineRunner:
         self._events: dict[str, threading.Event] = {}
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._fatal_error: Exception | None = None
 
     def start(self) -> None:
         self._thread = threading.Thread(target=self._loop, daemon=True, name="engine")
@@ -45,11 +46,37 @@ class EngineRunner:
         if self._thread is not None:
             self._thread.join(timeout=5)
 
+    def is_healthy(self) -> bool:
+        """True while the engine thread is alive and has not died on an exception.
+
+        `/health` has to ask this rather than just checking that a runner exists:
+        the engine runs on its own thread, and a thread that has died takes the
+        whole server's ability to generate with it while the process stays up.
+        """
+        return (
+            self._thread is not None
+            and self._thread.is_alive()
+            and self._fatal_error is None
+        )
+
+    @property
+    def error_message(self) -> str | None:
+        """The exception that killed the engine thread, if one did."""
+        if self._fatal_error is None:
+            return None
+        return f"{type(self._fatal_error).__name__}: {self._fatal_error}"
+
     def submit(
         self, prompt: str, max_new_tokens: int
     ) -> tuple[Sequence, threading.Event]:
         encoded = self.tokenizer(prompt, return_tensors="pt")
-        prompt_ids = encoded["input_ids"][:, -settings.MAX_PROMPT_TOKENS :]
+        input_ids = encoded["input_ids"]
+        prompt_ids = input_ids[:, -settings.MAX_PROMPT_TOKENS :]
+        if input_ids.shape[1] > prompt_ids.shape[1]:
+            logger.warning(
+                f"prompt truncated from {input_ids.shape[1]} to {prompt_ids.shape[1]} "
+                f"tokens (MAX_PROMPT_TOKENS={settings.MAX_PROMPT_TOKENS})"
+            )
         if prompt_ids.shape[1] == 0:
             prompt_ids = torch.tensor([[self.tokenizer.eos_token_id or 0]])
 
@@ -70,6 +97,10 @@ class EngineRunner:
         finished = event.wait(timeout)
         with self._lock:
             self._events.pop(sequence.id, None)
+            if not finished:
+                # Nobody is reading this sequence any more, so let go of its batch
+                # slot instead of decoding it to the end for a client that left.
+                self.engine.cancel(sequence.id)
         return finished
 
     def stats(self) -> dict:
@@ -83,33 +114,38 @@ class EngineRunner:
 
     def _loop(self) -> None:
         while not self._stop.is_set():
-            with self._lock:
-                has_work = self.engine.has_work()
-                if has_work:
-                    started = time.perf_counter()
-                    finished = self.engine.step()
-                    step_seconds = time.perf_counter() - started
-                    running, queued = len(self.engine.running), len(self.engine.waiting)
-                else:
-                    finished = []
-                    running = queued = 0
-
-            if not has_work:
-                metrics.set_engine_state(0, 0)
-                time.sleep(settings.IDLE_SLEEP_SECONDS)
-                continue
-
-            metrics.DECODE_STEP.observe(step_seconds)
-            metrics.set_engine_state(running, queued)
-
-            for sequence in finished:
-                total = (
-                    sequence.finished_at or time.perf_counter()
-                ) - sequence.queued_at
-                metrics.observe_completion(
-                    sequence.time_to_first_token(), len(sequence.tokens), total
-                )
+            try:
                 with self._lock:
-                    event = self._events.get(sequence.id)
-                if event is not None:
-                    event.set()
+                    has_work = self.engine.has_work()
+                    if has_work:
+                        started = time.perf_counter()
+                        finished = self.engine.step()
+                        step_seconds = time.perf_counter() - started
+                        running, queued = len(self.engine.running), len(self.engine.waiting)
+                    else:
+                        finished = []
+                        running = queued = 0
+
+                if not has_work:
+                    metrics.set_engine_state(0, 0)
+                    time.sleep(settings.IDLE_SLEEP_SECONDS)
+                    continue
+
+                metrics.DECODE_STEP.observe(step_seconds)
+                metrics.set_engine_state(running, queued)
+
+                for sequence in finished:
+                    total = (
+                        sequence.finished_at or time.perf_counter()
+                    ) - sequence.queued_at
+                    metrics.observe_completion(
+                        sequence.time_to_first_token(), len(sequence.tokens), total
+                    )
+                    with self._lock:
+                        event = self._events.get(sequence.id)
+                    if event is not None:
+                        event.set()
+            except Exception as exc:  # a dead engine thread must not look healthy
+                self._fatal_error = exc
+                logger.exception(f"engine thread died: {exc}")
+                break

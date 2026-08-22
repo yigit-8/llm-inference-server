@@ -81,6 +81,25 @@ class ContinuousBatchingEngine:
     def has_work(self) -> bool:
         return bool(self.waiting or self.running)
 
+    def cancel(self, sequence_id: str) -> bool:
+        """Drop a sequence nobody is waiting for any more. Unknown ids are a no-op.
+
+        A client that has given up (timed out, disconnected) must not keep a batch
+        slot and its KV cache rows, so a cancelled sequence leaves the engine the
+        same way a finished one does. Like every other method here, this runs under
+        the runner's lock, on whichever thread called it.
+        """
+        for sequence in self.waiting:
+            if sequence.id == sequence_id:
+                self.waiting.remove(sequence)
+                return True
+
+        for index, sequence in enumerate(self.running):
+            if sequence.id == sequence_id:
+                self._keep_rows([i for i in range(len(self.running)) if i != index])
+                return True
+        return False
+
     def step(self) -> list[Sequence]:
         """Run exactly one iteration. Returns sequences that finished in it.
 
@@ -116,7 +135,10 @@ class ContinuousBatchingEngine:
         keep = [i for i, s in enumerate(self.running) if not s.done]
         if len(keep) == len(self.running):
             return
+        self._keep_rows(keep)
 
+    def _keep_rows(self, keep: list[int]) -> None:
+        """Cut the running batch (and its cache) down to the given rows."""
         if not keep:
             self.running = []
             self.cache = None
