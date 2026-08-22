@@ -74,7 +74,7 @@ produce byte-identical output; the only difference is whether decode steps are
 shared. Measured on `distilgpt2`, CPU, 16 requests of 32 new tokens each, reported
 as the median of 3 runs:
 
-| Batch | Throughput (tok/s) | vs sequential | Forward passes | TTFT p50 | Inter-token latency p50 |
+| Batch | Throughput (tok/s) | vs sequential | Engine steps | TTFT p50 | Inter-token latency p50 |
 |------:|-------------------:|--------------:|---------------:|---------:|------------------------:|
 |     1 |               51.2 |         1.00x |            513 |    4.72s |                  19.2ms |
 |     2 |               72.3 |         1.41x |            257 |    3.15s |                  27.3ms |
@@ -82,11 +82,19 @@ as the median of 3 runs:
 |     8 |              157.7 |         3.08x |             65 |    1.02s |                  47.3ms |
 |    16 |              213.2 |         4.16x |             33 |    0.28s |                  68.4ms |
 
-Reading the table: batching 16 requests cuts the number of forward passes from 513
+Reading the table: batching 16 requests cuts the number of engine steps from 513
 to 33 and lifts throughput about 4x, while inter-token latency rises from 19ms to
-68ms. Time-to-first-token falls here because this benchmark enqueues every request
-at once, so a larger batch admits more of them in the first prefills instead of
-making the last request wait for fifteen others to finish; in an already-saturated
+68ms. An engine step is one iteration of the scheduling loop, not one call into the
+model. Decode is genuinely batched, so a decode step is a single forward pass over
+the whole batch, but prefill is not: `_prefill` runs one forward pass per admitted
+sequence. At batch 16 the 33 steps are therefore one prefill step issuing 16
+separate prompt forwards, then 31 batched decode steps, then a final step that only
+evicts the finished batch and runs no forward pass at all. That is 47 model calls,
+against 512 across the sequential arm's 513 steps. The throughput gain comes
+entirely from the decode side; batching prefill as well is listed under what this
+does not do. Time-to-first-token falls here because this benchmark enqueues every
+request at once, so a larger batch admits more of them in the first prefills instead
+of making the last request wait for fifteen others to finish; in an already-saturated
 server a new arrival would instead wait for a slot, which is the case the queue-depth
 and TTFT metrics exist to watch. The output was byte-identical to the sequential
 baseline at every batch size.
@@ -162,6 +170,10 @@ live:
 - **Greedy decoding only.** No temperature, top-k or top-p sampling. This is a
   deliberate choice: determinism is what makes the correctness property testable.
   Adding sampling with a fixed seed per request would preserve it.
+- **Prefill is not batched.** `_prefill` runs one forward pass per admitted
+  sequence, so admission cost grows linearly with how many requests arrive at
+  once. Only decode shares a forward pass. Padding the prompts and prefilling
+  them together the way decode already does is the obvious next step.
 - **No paged attention.** The KV cache is padded and copied on every batch change,
   which is O(tokens) work per admission and eviction. vLLM's paged attention stores
   the cache in fixed blocks and avoids the copies; that is the next thing this design

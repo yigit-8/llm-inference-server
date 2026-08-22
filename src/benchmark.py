@@ -115,7 +115,7 @@ def main() -> None:
     print(
         f"{'wall seconds':<22}{baseline['seconds']:>14.2f}{batched['seconds']:>14.2f}"
     )
-    print(f"{'forward passes':<22}{baseline['steps']:>14}{batched['steps']:>14}")
+    print(f"{'engine steps':<22}{baseline['steps']:>14}{batched['steps']:>14}")
     print(
         f"{'tokens/second':<22}{baseline['tokens_per_second']:>14.1f}"
         f"{batched['tokens_per_second']:>14.1f}"

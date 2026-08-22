@@ -23,5 +23,10 @@ class Settings(BaseSettings):
     # How long the engine sleeps when it has nothing to do.
     IDLE_SLEEP_SECONDS: float = 0.005
 
+    # How long a request may block on the engine before the caller gives up. The
+    # sequence is cancelled at that point, so a client that walked away does not
+    # keep a batch slot.
+    REQUEST_TIMEOUT_SECONDS: float = 120.0
+
 
 settings = Settings()
